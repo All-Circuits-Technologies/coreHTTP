@@ -293,7 +293,7 @@ static HTTPStatus_t findHeaderInResponse( const uint8_t * pBuffer,
  * parsing.
  */
 static int findHeaderFieldParserCallback( llhttp_t * pHttpParser,
-                                          const char * pFieldLoc,
+                                          const unsigned char * pFieldLoc,
                                           size_t fieldLen );
 
 /**
@@ -311,7 +311,7 @@ static int findHeaderFieldParserCallback( llhttp_t * pHttpParser,
  * found, otherwise #LLHTTP_CONTINUE_PARSING is returned.
  */
 static int findHeaderValueParserCallback( llhttp_t * pHttpParser,
-                                          const char * pValueLoc,
+                                          const unsigned char * pValueLoc,
                                           size_t valueLen );
 
 /**
@@ -385,7 +385,7 @@ static int httpParserOnMessageBeginCallback( llhttp_t * pHttpParser );
  * @return #LLHTTP_CONTINUE_PARSING to continue parsing.
  */
 static int httpParserOnStatusCallback( llhttp_t * pHttpParser,
-                                       const char * pLoc,
+                                       const unsigned char * pLoc,
                                        size_t length );
 
 /**
@@ -403,7 +403,7 @@ static int httpParserOnStatusCallback( llhttp_t * pHttpParser,
  * @return #LLHTTP_CONTINUE_PARSING to continue parsing.
  */
 static int httpParserOnHeaderFieldCallback( llhttp_t * pHttpParser,
-                                            const char * pLoc,
+                                            const unsigned char * pLoc,
                                             size_t length );
 
 /**
@@ -423,7 +423,7 @@ static int httpParserOnHeaderFieldCallback( llhttp_t * pHttpParser,
  * @return #LLHTTP_CONTINUE_PARSING to continue parsing.
  */
 static int httpParserOnHeaderValueCallback( llhttp_t * pHttpParser,
-                                            const char * pLoc,
+                                            const unsigned char * pLoc,
                                             size_t length );
 
 /**
@@ -483,7 +483,7 @@ static int httpParserOnHeadersCompleteCallback( llhttp_t * pHttpParser );
  * and llhttp_execute() will return with the same value.
  */
 static int httpParserOnBodyCallback( llhttp_t * pHttpParser,
-                                     const char * pLoc,
+                                     const unsigned char * pLoc,
                                      size_t length );
 
 /**
@@ -657,7 +657,7 @@ static int httpParserOnMessageBeginCallback( llhttp_t * pHttpParser )
 /*-----------------------------------------------------------*/
 
 static int httpParserOnStatusCallback( llhttp_t * pHttpParser,
-                                       const char * pLoc,
+                                       const unsigned char * pLoc,
                                        size_t length )
 {
     HTTPParsingContext_t * pParsingContext = NULL;
@@ -673,7 +673,7 @@ static int httpParserOnStatusCallback( llhttp_t * pHttpParser,
     assert( pResponse != NULL );
 
     /* Set the location of what to parse next. */
-    pParsingContext->pBufferCur = pLoc + length;
+    pParsingContext->pBufferCur = (const char*)pLoc + length;
 
     /* Initialize the first header field and value to be passed to the user
      * callback. */
@@ -698,7 +698,7 @@ static int httpParserOnStatusCallback( llhttp_t * pHttpParser,
 /*-----------------------------------------------------------*/
 
 static int httpParserOnHeaderFieldCallback( llhttp_t * pHttpParser,
-                                            const char * pLoc,
+                                            const unsigned char * pLoc,
                                             size_t length )
 {
     HTTPParsingContext_t * pParsingContext = NULL;
@@ -717,11 +717,11 @@ static int httpParserOnHeaderFieldCallback( llhttp_t * pHttpParser,
      * invoked on a response, then the start of the response headers is NULL. */
     if( pResponse->pHeaders == NULL )
     {
-        pResponse->pHeaders = ( const uint8_t * ) pLoc;
+        pResponse->pHeaders = pLoc;
     }
 
     /* Set the location of what to parse next. */
-    pParsingContext->pBufferCur = pLoc + length;
+    pParsingContext->pBufferCur = (const char*) pLoc + length;
 
     /* The httpParserOnHeaderFieldCallback() always follows the
      * httpParserOnHeaderValueCallback() if there is another header field. When
@@ -735,7 +735,7 @@ static int httpParserOnHeaderFieldCallback( llhttp_t * pHttpParser,
      * pParsingContext->pLastHeaderField. */
     if( pParsingContext->pLastHeaderField == NULL )
     {
-        pParsingContext->pLastHeaderField = pLoc;
+        pParsingContext->pLastHeaderField = (const char*) pLoc;
         pParsingContext->lastHeaderFieldLen = length;
     }
     else
@@ -755,7 +755,7 @@ static int httpParserOnHeaderFieldCallback( llhttp_t * pHttpParser,
 /*-----------------------------------------------------------*/
 
 static int httpParserOnHeaderValueCallback( llhttp_t * pHttpParser,
-                                            const char * pLoc,
+                                            const unsigned char * pLoc,
                                             size_t length )
 {
     HTTPParsingContext_t * pParsingContext = NULL;
@@ -767,7 +767,7 @@ static int httpParserOnHeaderValueCallback( llhttp_t * pHttpParser,
     pParsingContext = ( HTTPParsingContext_t * ) ( pHttpParser->data );
 
     /* Set the location of what to parse next. */
-    pParsingContext->pBufferCur = pLoc + length;
+    pParsingContext->pBufferCur = (const char*)pLoc + length;
 
     /* If httpParserOnHeaderValueCallback() is invoked in succession, then the
      * last time llhttp_execute() was called only part of the header field
@@ -775,7 +775,7 @@ static int httpParserOnHeaderValueCallback( llhttp_t * pHttpParser,
      * pParsingContext->pLastHeaderField. */
     if( pParsingContext->pLastHeaderValue == NULL )
     {
-        pParsingContext->pLastHeaderValue = pLoc;
+        pParsingContext->pLastHeaderValue = (const char*) pLoc;
         pParsingContext->lastHeaderValueLen = length;
     }
     else
@@ -889,7 +889,7 @@ static int httpParserOnHeadersCompleteCallback( llhttp_t * pHttpParser )
 /*-----------------------------------------------------------*/
 
 static int httpParserOnBodyCallback( llhttp_t * pHttpParser,
-                                     const char * pLoc,
+                                     const unsigned char * pLoc,
                                      size_t length )
 {
     int shouldContinueParse = LLHTTP_CONTINUE_PARSING;
@@ -906,8 +906,8 @@ static int httpParserOnBodyCallback( llhttp_t * pHttpParser,
 
     assert( pResponse != NULL );
     assert( pResponse->pBuffer != NULL );
-    assert( pLoc >= ( const char * ) ( pResponse->pBuffer ) );
-    assert( pLoc < ( const char * ) ( pResponse->pBuffer + pResponse->bufferLen ) );
+    assert( pLoc >= ( pResponse->pBuffer ) );
+    assert( pLoc <  ( pResponse->pBuffer + pResponse->bufferLen ) );
 
     /* If this is the first time httpParserOnBodyCallback() has been invoked,
      * then the start of the response body is NULL. */
@@ -918,7 +918,7 @@ static int httpParserOnBodyCallback( llhttp_t * pHttpParser,
          * are given the correct start of the body, we set the start of the body
          * to what the parser tells us is the start. This could come after the
          * initial transfer encoding chunked header. */
-        pResponse->pBody = ( const uint8_t * ) ( pLoc );
+        pResponse->pBody = pLoc;
         pResponse->bodyLen = 0U;
     }
 
@@ -943,7 +943,7 @@ static int httpParserOnBodyCallback( llhttp_t * pHttpParser,
      * point to a location in the response buffer. */
     /* coverity[pointer_parameter] */
     /* coverity[misra_c_2012_rule_18_3_violation] */
-    if( pLoc > pNextWriteLoc )
+    if( (const char*) pLoc > pNextWriteLoc )
     {
         /* memmove is used instead of memcpy because memcpy has undefined behavior
          * when source and destination locations in memory overlap. */
@@ -954,7 +954,7 @@ static int httpParserOnBodyCallback( llhttp_t * pHttpParser,
     pResponse->bodyLen += length;
 
     /* Set the next location of parsing. */
-    pParsingContext->pBufferCur = pLoc + length;
+    pParsingContext->pBufferCur = (const char*)pLoc + length;
 
     LogDebug( ( "Response parsing: Found the response body: "
                 "BodyLength=%lu",
@@ -1357,7 +1357,7 @@ static HTTPStatus_t addHeader( HTTPRequestHeaders_t * pRequestHeaders,
             pBufferCur += fieldLen;
 
             /* Copy the field separator, ": ", into the buffer. */
-            ( void ) strncpy( pBufferCur,
+            ( void ) memcpy( pBufferCur,
                               HTTP_HEADER_FIELD_SEPARATOR,
                               HTTP_HEADER_FIELD_SEPARATOR_LEN );
 
@@ -1375,7 +1375,7 @@ static HTTPStatus_t addHeader( HTTPRequestHeaders_t * pRequestHeaders,
             pBufferCur += valueLen;
 
             /* Copy the header end indicator, "\r\n\r\n" into the buffer. */
-            ( void ) strncpy( pBufferCur,
+            ( void ) memcpy( pBufferCur,
                               HTTP_HEADER_END_INDICATOR,
                               HTTP_HEADER_END_INDICATOR_LEN );
 
@@ -1416,7 +1416,7 @@ static HTTPStatus_t addRangeHeader( HTTPRequestHeaders_t * pRequestHeaders,
     /* Generate the value data for the Range Request header.*/
 
     /* Write the range value prefix in the buffer. */
-    ( void ) strncpy( rangeValueBuffer,
+    ( void ) memcpy( rangeValueBuffer,
                       HTTP_RANGE_REQUEST_HEADER_VALUE_PREFIX,
                       HTTP_RANGE_REQUEST_HEADER_VALUE_PREFIX_LEN );
     rangeValueLength += HTTP_RANGE_REQUEST_HEADER_VALUE_PREFIX_LEN;
@@ -1496,7 +1496,7 @@ static HTTPStatus_t writeRequestLine( HTTPRequestHeaders_t * pRequestHeaders,
     if( returnStatus == HTTPSuccess )
     {
         /* Write "<METHOD> <PATH> HTTP/1.1\r\n" to start the HTTP header. */
-        ( void ) strncpy( pBufferCur, pMethod, methodLen );
+        ( void ) memcpy( pBufferCur, pMethod, methodLen );
         pBufferCur += methodLen;
 
         *pBufferCur = SPACE_CHARACTER;
@@ -1505,26 +1505,26 @@ static HTTPStatus_t writeRequestLine( HTTPRequestHeaders_t * pRequestHeaders,
         /* Use "/" as default value if <PATH> is NULL. */
         if( ( pPath == NULL ) || ( pathLen == 0U ) )
         {
-            ( void ) strncpy( pBufferCur,
+            ( void ) memcpy( pBufferCur,
                               HTTP_EMPTY_PATH,
                               HTTP_EMPTY_PATH_LEN );
             pBufferCur += HTTP_EMPTY_PATH_LEN;
         }
         else
         {
-            ( void ) strncpy( pBufferCur, pPath, pathLen );
+            ( void ) memcpy( pBufferCur, pPath, pathLen );
             pBufferCur += pathLen;
         }
 
         *pBufferCur = SPACE_CHARACTER;
         pBufferCur += SPACE_CHARACTER_LEN;
 
-        ( void ) strncpy( pBufferCur,
+        ( void ) memcpy( pBufferCur,
                           HTTP_PROTOCOL_VERSION,
                           HTTP_PROTOCOL_VERSION_LEN );
         pBufferCur += HTTP_PROTOCOL_VERSION_LEN;
 
-        ( void ) strncpy( pBufferCur,
+        ( void ) memcpy( pBufferCur,
                           HTTP_HEADER_LINE_SEPARATOR,
                           HTTP_HEADER_LINE_SEPARATOR_LEN );
         pRequestHeaders->headersLen = toAddLen;
@@ -1934,8 +1934,7 @@ static HTTPStatus_t getFinalResponseStatus( HTTPParsingState_t parsingState,
 {
     HTTPStatus_t returnStatus = HTTPSuccess;
 
-    assert( parsingState >= HTTP_PARSING_NONE &&
-            parsingState <= HTTP_PARSING_COMPLETE );
+    assert( (unsigned)parsingState <= HTTP_PARSING_COMPLETE );
     assert( totalReceived <= responseBufferLen );
 
     /* If no parsing occurred, that means network data was never received. */
@@ -2236,7 +2235,7 @@ HTTPStatus_t HTTPClient_Send( const TransportInterface_t * pTransport,
 /*-----------------------------------------------------------*/
 
 static int findHeaderFieldParserCallback( llhttp_t * pHttpParser,
-                                          const char * pFieldLoc,
+                                          const unsigned char * pFieldLoc,
                                           size_t fieldLen )
 {
     findHeaderContext_t * pContext = NULL;
@@ -2258,7 +2257,7 @@ static int findHeaderFieldParserCallback( llhttp_t * pHttpParser,
     /* Check whether the parsed header matches the header we are looking for. */
     /* Each header field consists of a case-insensitive field name (RFC 7230, section 3.2). */
     if( ( fieldLen == pContext->fieldLen ) &&
-        ( caseInsensitiveStringCmp( pContext->pField, pFieldLoc, fieldLen ) == 0 ) )
+        ( caseInsensitiveStringCmp( pContext->pField, (const char*)pFieldLoc, fieldLen ) == 0 ) )
     {
         LogDebug( ( "Found header field in response: "
                     "HeaderName=%.*s, HeaderLocation=0x%p",
@@ -2278,7 +2277,7 @@ static int findHeaderFieldParserCallback( llhttp_t * pHttpParser,
 /*-----------------------------------------------------------*/
 
 static int findHeaderValueParserCallback( llhttp_t * pHttpParser,
-                                          const char * pValueLoc,
+                                          const unsigned char * pValueLoc,
                                           size_t valueLen )
 {
     int retCode = LLHTTP_CONTINUE_PARSING;
@@ -2308,7 +2307,7 @@ static int findHeaderValueParserCallback( llhttp_t * pHttpParser,
         {
             /* Populate the output parameters with the location of the header
              * value in the response buffer. */
-            *pContext->pValueLoc = pValueLoc;
+            *pContext->pValueLoc = (const char*) pValueLoc;
             *pContext->pValueLen = valueLen;
         }
         else
